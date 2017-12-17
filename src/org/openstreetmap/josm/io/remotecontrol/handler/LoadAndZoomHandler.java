@@ -60,6 +60,8 @@ public class LoadAndZoomHandler extends RequestHandler {
     // Optional argument 'select'
     private final Set<SimplePrimitiveId> toSelect = new HashSet<>();
 
+    private Boolean isKeepingCurrentSelection = false;
+
     @Override
     public String getPermissionMessage() {
         String msg = tr("Remote Control has been asked to load data from the API.") +
@@ -159,7 +161,7 @@ public class LoadAndZoomHandler extends RequestHandler {
         /**
          * deselect objects if parameter addtags given
          */
-        if (args.containsKey("addtags")) {
+        if (args.containsKey("addtags") && !isKeepingCurrentSelection) {
             GuiHelper.executeByMainWorkerInEDT(() -> {
                 DataSet ds = MainApplication.getLayerManager().getEditDataSet();
                 if (ds == null) // e.g. download failed
@@ -184,7 +186,12 @@ public class LoadAndZoomHandler extends RequestHandler {
                         forTagAdd.add(p);
                     }
                 }
+                if (isKeepingCurrentSelection) {
+                    newSel.addAll(ds.getSelected());
+                    forTagAdd.addAll(ds.getSelected());
+                }
                 toSelect.clear();
+                isKeepingCurrentSelection = false;
                 ds.setSelected(newSel);
                 zoom(newSel, bbox);
                 MapFrame map = MainApplication.getMap();
@@ -286,6 +293,10 @@ public class LoadAndZoomHandler extends RequestHandler {
             toSelect.clear();
             for (String item : args.get("select").split(",")) {
                 if (!item.isEmpty()) {
+                    if (item.toLowerCase().equals("currentselection")) {
+                        isKeepingCurrentSelection = true;
+                        continue;
+                    }
                     try {
                         toSelect.add(SimplePrimitiveId.fromString(item));
                     } catch (IllegalArgumentException ex) {
